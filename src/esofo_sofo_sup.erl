@@ -25,14 +25,12 @@ start_link(WorkerModule, SupOptions) ->
 start_child(WorkerModule, ID, WorkerArgs, EsofoGSOptions)
   when is_atom(WorkerModule) andalso is_map(WorkerArgs)
        andalso is_map(EsofoGSOptions) ->
-    SupPid = case global:whereis_name({node(), ?MODULE, WorkerModule}) of
+    case global:whereis_name({node(), ?MODULE, WorkerModule}) of
         undefined ->
-            {ok, Pid} = esofo_sup:start_sofo_sup(WorkerModule, #{}),
-            Pid;
+            {error, sofo_sup_not_started, WorkerModule};
         Pid when is_pid(Pid) ->
-            Pid
-    end,
-    supervisor:start_child(SupPid, [ID, WorkerArgs, EsofoGSOptions]).
+            supervisor:start_child(Pid, [ID, WorkerArgs, EsofoGSOptions])
+    end.
 
 %%====================================================================
 %% Supervisor callbacks
