@@ -37,6 +37,13 @@ init(#{id := ID, args := Args}) ->
     lager:info("starting db_handler with id ~p and args ~p", [ID, Args]),
     {ok, #state{id = ID}}.
 
+handle_call(noreply, From, State) ->
+    gen_server:reply(From, noreply_reply),
+    {noreply, State};
+handle_call(stop, _From, State) ->
+    {stop, normal, State};
+handle_call(stop_reply, _From, State) ->
+    {stop, normal, stopped, State};
 handle_call(Request, _From, State) ->
     lager:error("Unknown call to ~s: ~p", [?MODULE, Request]),
     {reply, unknown_call, State}.

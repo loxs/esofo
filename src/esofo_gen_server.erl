@@ -6,6 +6,7 @@
 -export([
          start/1,
          start/3,
+         find/1,
          call/2,
          stop/1, stop/3
         ]).
@@ -30,6 +31,14 @@ start({WorkerModule, ID}, Args, GivenOptions)
     DefaultOptions = #{hibernate => 0, shutdown => infinity},
     Options = maps:merge(DefaultOptions, GivenOptions),
     esofo_sofo_sup:start_child(WorkerModule, ID, Args, Options).
+
+find({WorkerModule, ID}) ->
+    case global:whereis_name({?MODULE, WorkerModule, ID}) of
+        undefined ->
+            {error, not_found};
+        Pid when is_pid(Pid) ->
+            {ok, Pid}
+    end.
 
 call({WorkerModule, ID}, Message) ->
     gen_server:call(name({WorkerModule, ID}), Message).
@@ -69,7 +78,8 @@ init([WorkerModule, ID, WorkerArgs, Options]) ->
             {ok, State#state{worker_state = WorkerState}};
         {ok, WorkerState, hibernate} ->
             {ok, State#state{worker_state = WorkerState}, hibernate};
-        {ok, WorkerState, Timeout} ->
+        {ok, WorkerState, Timeout}
+          when is_integer(Timeout) andalso Timeout >= 0 ->
             {ok, State#state{worker_state = WorkerState}, Timeout};
         {stop, Reason} -> {stop, Reason};
         ignore -> ignore
@@ -78,8 +88,29 @@ init([WorkerModule, ID, WorkerArgs, Options]) ->
 handle_call(Request, From, #state{worker_module=WM,
                                   worker_state=WState0}=State0) ->
     State = set_timers(State0),
-    {reply, Reply, WState} = WM:handle_call(Request, From, WState0),
-    {reply, Reply, State#state{worker_state=WState}}.
+    case WM:handle_call(Request, From, WState0) of
+        {reply, Reply, WState}  ->
+            {reply, Reply, State#state{worker_state=WState}};
+        {reply, Reply, WState, hibernate} ->
+            {reply, Reply, State#state{worker_state=WState}, hibernate};
+        {reply, Reply, WState, Timeout}
+          when is_integer(Timeout) andalso Timeout >= 0 ->
+            {reply, Reply, State#state{worker_state=WState}, Timeout};
+
+        {noreply, WState}  ->
+            {noreply, State#state{worker_state=WState}};
+        {noreply, WState, hibernate} ->
+            {noreply, State#state{worker_state=WState}, hibernate};
+        {noreply, WState, Timeout}
+          when is_integer(Timeout) andalso Timeout >= 0 ->
+            {noreply, State#state{worker_state=WState}, Timeout};
+
+        {stop, Reason, WState}->
+            {stop, Reason, State#state{worker_state=WState}};
+        {stop, Reason, Reply, WState}->
+            {stop, Reason, Reply, State#state{worker_state=WState}}
+
+    end.
 
 handle_cast(Msg, #state{worker_state=WState0, worker_module=WM}=State0) ->
     State = set_timers(State0),
