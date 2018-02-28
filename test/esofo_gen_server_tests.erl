@@ -112,6 +112,7 @@ test_call() ->
     noreply = esofo_gen_server:call({?MODULE, ID}, test_noreply),
     noreply_hibernate = esofo_gen_server:call(
                                {?MODULE, ID}, test_noreply_hibernate),
+    assure_hibernated(Pid),
     noreply_timeout = esofo_gen_server:call(
                              {?MODULE, ID}, test_noreply_timeout),
 
