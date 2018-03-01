@@ -143,7 +143,7 @@ name({WorkerModule, ID}) ->
 
 -spec set_timers(#state{}) -> #state{}.
 set_timers(#state{hibernate_after = HAfter, hibernate_timer = OldHTimer,
-                      shutdown_after = SAfter, shutdown_timer = OldSTimer }=S) ->
+                  shutdown_after = SAfter, shutdown_timer = OldSTimer }=S) ->
     if OldHTimer =/= undefined -> timer:cancel(OldHTimer); true -> pass end,
     if OldSTimer =/= undefined -> timer:cancel(OldSTimer); true -> pass end,
 

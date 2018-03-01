@@ -44,7 +44,7 @@ init([WorkerModule, _Options]) ->
     ChildSpecs = #{id => WorkerModule,
                    type => worker,
                    start => {esofo_gen_server, start_link, [WorkerModule]},
-                   restart => transient,
+                   restart => temporary,
                    shutdown => 5000},
     {ok, {SupFlags, [ChildSpecs]} }.
 
