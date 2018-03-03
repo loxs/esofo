@@ -48,6 +48,9 @@ handle_call(Request, _From, State) ->
     lager:error("Unknown call to ~s: ~p", [?MODULE, Request]),
     {reply, unknown_call, State}.
 
+handle_cast(hibernate, State) ->
+    lager:info("Will hibernate"),
+    {noreply, State, hibernate};
 handle_cast(Msg, State) ->
     lager:error("Unknown cast to ~s: ~p", [?MODULE, Msg]),
     {noreply, State}.

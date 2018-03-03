@@ -8,7 +8,10 @@
          start/3,
          find/1,
          call/2,
-         stop/1, stop/3
+         call/3,
+         cast/2,
+         stop/1,
+         stop/3
         ]).
 
 %% gen_server callbacks
@@ -40,12 +43,23 @@ find({WorkerModule, ID}) ->
             {ok, Pid}
     end.
 
+-spec call({atom, term()}, term()) -> term().
 call({WorkerModule, ID}, Message) ->
     gen_server:call(name({WorkerModule, ID}), Message).
 
+-spec call({atom, term()}, term(), pos_integer()) -> term().
+call({WorkerModule, ID}, Message, Timeout) ->
+    gen_server:call(name({WorkerModule, ID}), Message, Timeout).
+
+-spec cast({atom, term()}, term()) -> ok.
+cast({WorkerModule, ID}, Message) ->
+    gen_server:cast(name({WorkerModule, ID}), Message).
+
+-spec stop({atom, term()}) -> ok.
 stop({WorkerModule, ID}) ->
     gen_server:stop(name({WorkerModule, ID})).
 
+-spec stop({atom, term()}, term(), pos_integer()) -> ok.
 stop({WorkerModule, ID}, Reason, Timeout) ->
     gen_server:stop(name({WorkerModule, ID}), Reason, Timeout).
 
@@ -114,8 +128,16 @@ handle_call(Request, From, #state{worker_module=WM,
 
 handle_cast(Msg, #state{worker_state=WState0, worker_module=WM}=State0) ->
     State = set_timers(State0),
-    {noreply, WState} = WM:handle_cast(Msg, WState0),
-    {noreply, State#state{worker_state=WState}}.
+    case WM:handle_cast(Msg, WState0) of
+        {noreply, WState} ->
+            {noreply, State#state{worker_state=WState}};
+        {noreply, WState, hibernate} ->
+            {noreply, State#state{worker_state=WState}, hibernate};
+        {noreply, WState, Timeout} ->
+            {noreply, State#state{worker_state=WState}, Timeout};
+        {stop, Reason, WState} ->
+            {stop, Reason, State#state{worker_state=WState}}
+    end.
 
 handle_info({?MODULE, hibernate}, State) ->
     {noreply, State, hibernate};
@@ -126,14 +148,23 @@ handle_info({?MODULE, shutdown}, State) ->
     end;
 handle_info(Info, #state{worker_state=WState0, worker_module=WM}=State0) ->
     State = set_timers(State0),
-    {noreply, WState} = WM:handle_info(Info, WState0),
-    {noreply, State#state{worker_state=WState}}.
+    case WM:handle_info(Info, WState0) of
+        {noreply, WState} ->
+            {noreply, State#state{worker_state=WState}};
+        {noreply, WState, hibernate} ->
+            {noreply, State#state{worker_state=WState}, hibernate};
+        {noreply, WState, Timeout} ->
+            {noreply, State#state{worker_state=WState}, Timeout};
+        {stop, Reason, WState} ->
+            {stop, Reason, State#state{worker_state=WState}}
+    end.
 
 terminate(Reason, #state{worker_state=WState, worker_module=WM}) ->
     WM:terminate(Reason, WState).
 
-code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+code_change(OldVsn, #state{worker_state=WState0, worker_module=WM}=State, Extra) ->
+    {ok, WState} = WM:terminate(OldVsn, WState0, Extra),
+    {ok, State#state{worker_state = WState}}.
 
 %%%===================================================================
 %%% Internal functions

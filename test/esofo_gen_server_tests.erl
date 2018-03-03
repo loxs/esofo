@@ -49,11 +49,23 @@ handle_call(test_stop_noreply, From, State) ->
 handle_call(Request, _From, State) ->
     {reply, {unknown_call, Request}, State}.
 
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+handle_cast(cast_noreply, State) ->
+    {noreply, State};
+handle_cast(cast_noreply_hibernate, State) ->
+    {noreply, State, hibernate};
+handle_cast(cast_noreply_timeout, State) ->
+    {noreply, State, 5};
+handle_cast(cast_noreply_stop, State) ->
+    {stop, normal, State}.
 
-handle_info(_Info, State) ->
-    {noreply, State}.
+handle_info(info_noreply, State) ->
+    {noreply, State};
+handle_info(info_noreply_hibernate, State) ->
+    {noreply, State, hibernate};
+handle_info(info_noreply_timeout, State) ->
+    {noreply, State, timeout};
+handle_info(info_noreply_stop, State) ->
+    {stop, normal, State}.
 
 terminate(_Reason, #state{id = _ID}) ->
     ok.
@@ -75,9 +87,11 @@ top_level_test_() ->
      fun(_) ->
      {inparallel, [
                    {"hibernation", ?_test(hibernation())}
-                   , {"shutdown", ?_test(shutdown())}
-                   , {"init", ?_test(test_init())}
-                   , {"test_call", ?_test(test_call())}
+                  , {"shutdown", ?_test(shutdown())}
+                  , {"test_init", ?_test(test_init())}
+                  , {"test_call", ?_test(test_call())}
+                  , {"test_cast", ?_test(test_cast())}
+                  , {"test_info", ?_test(test_info())}
                   ]}
      end}.
 
@@ -121,6 +135,45 @@ test_call() ->
     Pid1 = start_worker(ID, infinity, infinity),
     stopped = esofo_gen_server:call({?MODULE, ID}, test_stop_noreply),
     false = erlang:is_process_alive(Pid1).
+
+test_cast() ->
+    ID = esofo_gen_server_cast,
+    _ = start_worker(ID, infinity, infinity),
+    {ok, Pid} = esofo_gen_server:find({?MODULE, ID}),
+
+    ok = esofo_gen_server:cast({?MODULE, ID}, cast_noreply),
+    true = erlang:is_process_alive(Pid),
+
+    ok = esofo_gen_server:cast({?MODULE, ID}, cast_noreply_hibernate),
+    timer:sleep(timer:seconds(1)),
+    assure_hibernated(Pid),
+
+    ok = esofo_gen_server:cast({?MODULE, ID}, cast_noreply_timeout),
+    true = erlang:is_process_alive(Pid),
+
+    ok = esofo_gen_server:cast({?MODULE, ID}, cast_noreply_stop),
+    timer:sleep(timer:seconds(1)),
+    false = erlang:is_process_alive(Pid).
+
+test_info() ->
+    ID = esofo_gen_server_info,
+    _ = start_worker(ID, infinity, infinity),
+    {ok, Pid} = esofo_gen_server:find({?MODULE, ID}),
+
+    Pid ! info_noreply,
+    true = erlang:is_process_alive(Pid),
+
+    Pid ! info_noreply_hibernate,
+    timer:sleep(timer:seconds(1)),
+    assure_hibernated(Pid),
+
+    Pid ! info_noreply_timeout,
+    true = erlang:is_process_alive(Pid),
+
+    Pid ! info_noreply_stop,
+    timer:sleep(timer:seconds(1)),
+    false = erlang:is_process_alive(Pid).
+
 
 hibernation() ->
     Pid = start_worker(hibernation_tester, 1, infinity),
