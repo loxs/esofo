@@ -36,32 +36,27 @@ start({WorkerModule, ID}, Args, GivenOptions)
     esofo_sofo_sup:start_child(WorkerModule, ID, Args, Options).
 
 find({WorkerModule, ID}) ->
-    case global:whereis_name({?MODULE, WorkerModule, ID}) of
-        undefined ->
-            {error, not_found};
-        Pid when is_pid(Pid) ->
-            {ok, Pid}
-    end.
+    find_in_registry({WorkerModule, ID}).
 
 -spec call({atom, term()}, term()) -> term().
 call({WorkerModule, ID}, Message) ->
-    gen_server:call(name({WorkerModule, ID}), Message).
+    gen_server:call(via_registry_name({WorkerModule, ID}), Message).
 
 -spec call({atom, term()}, term(), pos_integer()) -> term().
 call({WorkerModule, ID}, Message, Timeout) ->
-    gen_server:call(name({WorkerModule, ID}), Message, Timeout).
+    gen_server:call(via_registry_name({WorkerModule, ID}), Message, Timeout).
 
 -spec cast({atom, term()}, term()) -> ok.
 cast({WorkerModule, ID}, Message) ->
-    gen_server:cast(name({WorkerModule, ID}), Message).
+    gen_server:cast(via_registry_name({WorkerModule, ID}), Message).
 
 -spec stop({atom, term()}) -> ok.
 stop({WorkerModule, ID}) ->
-    gen_server:stop(name({WorkerModule, ID})).
+    gen_server:stop(via_registry_name({WorkerModule, ID})).
 
 -spec stop({atom, term()}, term(), pos_integer()) -> ok.
 stop({WorkerModule, ID}, Reason, Timeout) ->
-    gen_server:stop(name({WorkerModule, ID}), Reason, Timeout).
+    gen_server:stop(via_registry_name({WorkerModule, ID}), Reason, Timeout).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -76,8 +71,10 @@ stop({WorkerModule, ID}, Reason, Timeout) ->
           shutdown_timer :: timer:tref() | undefined
          }).
 
-start_link(WorkerModule, ID, WorkerArgs, Options) ->
-    gen_server:start_link(name({WorkerModule, ID}),
+-spec start_link(atom(), term(), map(), map()) -> any().
+start_link(WorkerModule, ID, WorkerArgs, Options)
+  when is_atom(WorkerModule) andalso is_map(WorkerArgs) andalso is_map(Options) ->
+    gen_server:start_link(via_registry_name({WorkerModule, ID}),
                           ?MODULE, [WorkerModule, ID, WorkerArgs, Options], []).
 
 init([WorkerModule, ID, WorkerArgs, Options]) ->
@@ -169,8 +166,35 @@ code_change(OldVsn, #state{worker_state=WState0, worker_module=WM}=State, Extra)
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
-name({WorkerModule, ID}) ->
-    {global, {?MODULE, WorkerModule, ID}}.
+-spec get_registry(atom()) -> atom().
+get_registry(WorkerModule)  when is_atom(WorkerModule) ->
+    case erlang:function_exported(WorkerModule, esofo_registry, 0) of
+        true ->
+            WorkerModule:esofo_registry();
+        false ->
+            global
+    end.
+
+%% registry_name({WorkerModule, ID}) ->
+%%     registry_name(get_registry(WorkerModule), {WorkerModule, ID}).
+
+registry_name(gproc, {WorkerModule, ID}) ->
+    {n, l, {?MODULE, WorkerModule, ID}};
+registry_name(_Registry, {WorkerModule, ID}) ->
+    {?MODULE, WorkerModule, ID}.
+
+via_registry_name({WorkerModule, ID}) ->
+    Registry = get_registry(WorkerModule),
+    {via, Registry, registry_name(Registry, {WorkerModule, ID})}.
+
+find_in_registry({WorkerModule, ID}) ->
+    Registry = get_registry(WorkerModule),
+    case Registry:whereis_name(registry_name(Registry, {WorkerModule, ID})) of
+        undefined ->
+            {error, not_found};
+        Pid when is_pid(Pid) ->
+            {ok, Pid}
+    end.
 
 -spec set_timers(#state{}) -> #state{}.
 set_timers(#state{hibernate_after = HAfter, hibernate_timer = OldHTimer,

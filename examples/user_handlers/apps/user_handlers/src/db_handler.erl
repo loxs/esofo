@@ -3,7 +3,8 @@
 -behaviour(gen_server).
 
 %% API
--export([start_user/1,
+-export([esofo_registry/0,
+         start_user/1,
          get_user_data/1]).
 
 %% gen_server callbacks
@@ -19,6 +20,9 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+esofo_registry() ->
+    gproc.
+
 start_user(ID) ->
     esofo_gen_server:start({?MODULE, ID},
                            #{arg_a => "A", arg_b => "B"},
