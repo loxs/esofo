@@ -5,7 +5,8 @@
   {mod, { user_handlers_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    esofo
    ]},
   {env,[]},
   {modules, []},

@@ -1,5 +1,7 @@
 -module(esofo_gen_server).
 
+-include("esofo.hrl").
+
 -behaviour(gen_server).
 
 %% API
@@ -140,8 +142,11 @@ handle_info({?MODULE, hibernate}, State) ->
     {noreply, State, hibernate};
 handle_info({?MODULE, shutdown}, State) ->
     {message_queue_len, MQL} = erlang:process_info(self(), message_queue_len),
-    case MQL of 0 -> {stop, normal, State};
-        _ -> {noreply, State}
+    case MQL of 0 ->
+            {stop, normal, State};
+        _ ->
+            State1 = set_timers(State),
+            {noreply, State1}
     end;
 handle_info(Info, #state{worker_state=WState0, worker_module=WM}=State0) ->
     State = set_timers(State0),
@@ -157,6 +162,7 @@ handle_info(Info, #state{worker_state=WState0, worker_module=WM}=State0) ->
     end.
 
 terminate(Reason, #state{worker_state=WState, worker_module=WM}) ->
+    ets:delete(?ETS_LAST_ACTIVITY, self()),
     WM:terminate(Reason, WState).
 
 code_change(OldVsn, #state{worker_state=WState0, worker_module=WM}=State, Extra) ->
@@ -216,4 +222,5 @@ set_timers(#state{hibernate_after = HAfter, hibernate_timer = OldHTimer,
                      {ok, STmr} = timer:send_after(SAfter, {?MODULE, shutdown}),
                      STmr
              end,
+    ets:insert(?ETS_LAST_ACTIVITY, {erlang:system_time(seconds), self()}),
     S#state{hibernate_timer = HTimer, shutdown_timer = STimer}.

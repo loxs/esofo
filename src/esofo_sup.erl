@@ -41,7 +41,16 @@ stop_sofo_sup(WorkerModule) ->
 
 %% Child :: {Id,StartFunc,Restart,Shutdown,Type,Modules}
 init([]) ->
-    {ok, { {one_for_one, 0, 1}, []} }.
+    SupFlags = #{strategy => one_for_one,
+                 intensity => 1,
+                 period => 5},
+
+    Sentry = #{id => esofo_sentry,
+               start => {esofo_sentry, start_link, []},
+               restart => permanent,
+               shutdown => 5000,
+               type => worker },
+    {ok, { SupFlags, [Sentry]} }.
 
 %%====================================================================
 %% Internal functions

@@ -15,7 +15,8 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    user_handlers_sup:start_link().
+    user_handlers_sup:start_link(),
+    {ok, _} = esofo:start_sofo_sup(db_handler).
 
 %%--------------------------------------------------------------------
 stop(_State) ->

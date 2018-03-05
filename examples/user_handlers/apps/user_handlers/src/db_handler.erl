@@ -27,7 +27,7 @@ start_user(ID) ->
     esofo_gen_server:start({?MODULE, ID},
                            #{arg_a => "A", arg_b => "B"},
                            #{hibernate => timer:seconds(10),
-                             shutdown => timer:minutes(1)}).
+                             shutdown => timer:minutes(30)}).
 
 get_user_data(ID) ->
     esofo_gen_server:call({?MODULE, ID}, get_user_data).
@@ -37,8 +37,8 @@ get_user_data(ID) ->
 %%% gen_server callbacks
 %%%===================================================================
 
-init(#{id := ID, args := Args}) ->
-    lager:info("starting db_handler with id ~p and args ~p", [ID, Args]),
+init(#{id := ID, args := _Args}) ->
+    %% lager:info("starting db_handler with id ~p and args ~p", [ID, Args]),
     {ok, #state{id = ID}}.
 
 handle_call(noreply, From, State) ->
@@ -63,8 +63,8 @@ handle_info(Info, State) ->
     lager:error("Unknown info received by ~s: ~p", [?MODULE, Info]),
     {noreply, State}.
 
-terminate(_Reason, #state{id = ID}) ->
-    lager:info("Terminating db_handler ~p", [ID]),
+terminate(_Reason, #state{id = _ID}) ->
+    %% lager:info("Terminating db_handler ~p", [ID]),
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
