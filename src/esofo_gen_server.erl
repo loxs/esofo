@@ -142,7 +142,8 @@ handle_info({?MODULE, hibernate}, State) ->
     {noreply, State, hibernate};
 handle_info({?MODULE, shutdown}, State) ->
     {message_queue_len, MQL} = erlang:process_info(self(), message_queue_len),
-    case MQL of 0 ->
+    case MQL of
+        0 ->
             {stop, normal, State};
         _ ->
             State1 = set_timers(State),
