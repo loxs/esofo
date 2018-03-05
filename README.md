@@ -1,6 +1,6 @@
 # esofo
 
-Easy simple_one_for_one - boilerplate for when you need to manage many simple
+Easy [simple_one_for_one](http://erlang.org/doc/design_principles/sup_princ.html#id80194) - boilerplate for when you need to manage many simple
 processes, but don't want to have to implement the same babysitting code every
 time. By using esofo you don't have to implement any of these:
 
@@ -13,7 +13,7 @@ time. By using esofo you don't have to implement any of these:
 ## esofo_gen_server
 
 Esofo_gen_server is a thin wrapper around OTP gen_server.
-In order to use it, just implement a regular gen_server. The only two differences are how you start it and you need to modify your init to accept a specific argument.
+In order to use it, just implement a regular [gen_server](http://erlang.org/doc/man/gen_server.html). The only two differences are how you start it and you need to modify your `init/1` to accept a specific argument.
 
 First start an esofo simple_one_for_one supervisor like this:
 ```
@@ -40,14 +40,14 @@ While designing `esofo` I tried to make sure that it's as close to a drop-in rep
 ```
 The `id` in the map is the one you provided when starting the process and the `args` are the ones you provide as a second argument
 
-2. You can also implement a callback function `esofo_registry` so that we register the workers in it. If not implemented, `global` is chosen.
+2. You can also implement a callback function `esofo_registry` so that we register the workers in it. If not implemented, [global](http://erlang.org/doc/man/global.html) is chosen.
 ```erlang
 -export([esofo_registry/0]).
 
 esofo_registry() ->
     gproc.
 ```
-You can choose any registry which supports the `global` API (gproc does).
+You can choose any registry which supports the `global` API ([gproc](https://github.com/uwiger/gproc) does).
 
 After starting the gen_server, you can find it or call it in either these ways (both are equally valid):
 
