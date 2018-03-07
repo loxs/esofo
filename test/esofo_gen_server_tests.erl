@@ -4,12 +4,12 @@
 -include_lib("eunit/include/eunit.hrl").
 
 gen_server_global_test_() ->
-    gen_server(esofo_gen_server_global).
+    gen_server(esofo_gen_server_global, global).
 
 gen_server_gproc_test_() ->
-    gen_server(esofo_gen_server_gproc).
+    gen_server(esofo_gen_server_gproc, gproc).
 
-gen_server(Module) ->
+gen_server(Module, Registry) ->
     ModStr = erlang:atom_to_list(Module),
     {setup,
      fun() ->
@@ -23,7 +23,9 @@ gen_server(Module) ->
      end,
      fun(_) ->
      {inparallel, [
-                   {"hibernation " ++ ModStr, ?_test(hibernation(Module))}
+                  {"ensure_registry " ++ ModStr,
+                   ?_test(ensure_registry(Module, Registry))}
+                  , {"hibernation " ++ ModStr, ?_test(hibernation(Module))}
                   , {"shutdown " ++ ModStr, ?_test(shutdown(Module))}
                   , {"test_init " ++ ModStr, ?_test(test_init(Module))}
                   , {"test_call " ++ ModStr, ?_test(test_call(Module))}
@@ -32,6 +34,8 @@ gen_server(Module) ->
                   ]}
      end}.
 
+ensure_registry(Module, Registry) ->
+    Registry = esofo_gen_server:get_registry(Module).
 
 test_init(Module) ->
     ID = test_init,

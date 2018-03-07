@@ -13,7 +13,8 @@
          call/3,
          cast/2,
          stop/1,
-         stop/3
+         stop/3,
+         get_registry/1
         ]).
 
 %% gen_server callbacks
@@ -59,6 +60,17 @@ stop({WorkerModule, ID}) ->
 -spec stop({atom, term()}, term(), pos_integer()) -> ok.
 stop({WorkerModule, ID}, Reason, Timeout) ->
     gen_server:stop(via_registry_name({WorkerModule, ID}), Reason, Timeout).
+
+-spec get_registry(atom()) -> atom().
+get_registry(WorkerModule)  when is_atom(WorkerModule) ->
+    case is_exported(WorkerModule, esofo_registry, 0) of
+        true ->
+            Registry = WorkerModule:esofo_registry(),
+            true = is_atom(Registry),
+            Registry;
+        false ->
+            global
+    end.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -173,14 +185,12 @@ code_change(OldVsn, #state{worker_state=WState0, worker_module=WM}=State, Extra)
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
--spec get_registry(atom()) -> atom().
-get_registry(WorkerModule)  when is_atom(WorkerModule) ->
-    case erlang:function_exported(WorkerModule, esofo_registry, 0) of
-        true ->
-            WorkerModule:esofo_registry();
-        false ->
-            global
-    end.
+is_exported(M, F, Arity) ->
+    case erlang:module_loaded(M) of
+        false -> code:ensure_loaded(M);
+        true -> ok
+    end,
+    erlang:function_exported(M, F, Arity).
 
 %% registry_name({WorkerModule, ID}) ->
 %%     registry_name(get_registry(WorkerModule), {WorkerModule, ID}).

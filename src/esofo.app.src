@@ -1,5 +1,5 @@
 {application, esofo,
- [{description, "An OTP application"},
+ [{description, "easy simple_one_for_one"},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, { esofo_app, []}},
@@ -11,7 +11,7 @@
   {env,[]},
   {modules, []},
 
-  {maintainers, []},
+  {maintainers, ["Metin Akat"]},
   {licenses, ["Apache 2.0"]},
   {links, []}
  ]}.
