@@ -66,33 +66,41 @@ code_change(_OldVsn, State, _Extra) ->
 enforce_limits(#state{process_count_limit = ProcCountLimit}) ->
     ProcessLimit = erlang:system_info(process_limit),
     CurPrCount = erlang:system_info(process_count),
-    AllowedPrCount = (ProcessLimit / 100) * ProcCountLimit,
+    AllowedPrCount = trunc((ProcessLimit / 100) * ProcCountLimit),
     case CurPrCount > AllowedPrCount of
         true ->
             Overflow = CurPrCount - AllowedPrCount,
             CountToKill = Overflow * 2,
-            error_logger:info_msg("Esofo sentry will kill ~p processes~n",
-                                  [CountToKill]),
-            Procs = all_by_last_activity(),
-            kill_inactive(Procs, CountToKill, 0);
+            Before = erlang:system_time(millisecond),
+            Cursor = all_by_last_activity(),
+            kill_inactive(Cursor, CountToKill, 0),
+            qlc:delete_cursor(Cursor),
+            After = erlang:system_time(millisecond),
+            Seconds = (After - Before) / 1000,
+            error_logger:info_msg("esofo_sentri killed ~p workers in ~p seconds",
+                                  [CountToKill, Seconds]),
+            erlang:garbage_collect();
         false ->
             pass
     end,
     ok.
 
 
+-spec all_by_last_activity() -> qlc:query_cursor().
 all_by_last_activity() ->
     Q = qlc:sort(qlc:q([ X || X <- ets:table(?ETS_LAST_ACTIVITY)])),
-    qlc:e(Q).
+    qlc:cursor(qlc:e(Q)).
 
-kill_inactive([{_, Pid} | Tail], CountToKill, Killed)
+-spec kill_inactive(qlc:query_cursor(), integer(), integer()) -> ok.
+kill_inactive(Cursor, CountToKill, Killed)
   when CountToKill >= Killed ->
+    [{_Timestamp, Pid}] = qlc:next_answers(Cursor, 1),
     case erlang:is_process_alive(Pid) of
         false ->
             ets:delete(?ETS_LAST_ACTIVITY, Pid);
         true ->
             Pid ! {esofo_gen_server, shutdown}
     end,
-    kill_inactive(Tail, CountToKill, Killed+1);
+    kill_inactive(Cursor, CountToKill, Killed+1);
 kill_inactive(_, _, _) ->
     ok.

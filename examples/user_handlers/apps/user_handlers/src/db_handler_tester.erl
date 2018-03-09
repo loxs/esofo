@@ -9,7 +9,7 @@ start_db_handlers(StartFrom, Number) ->
 
 start_db_handlers(StartFrom, End, Current) when End > Current ->
     db_handler:start_user(Current),
-    case Current rem 1000 of
+    case Current rem 10000 of
         0 ->
             lager:info("started db_handler ~p", [Current]),
             timer:sleep(100);
